@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Video {
+  id        String   @id @default(cuid())
+  title     String
+  url       String
+  platform  String   @default("unknown")
+  views     Int      @default(0)
+  createdAt DateTime @default(now())
+}model Ad {
+  id        String   @id @default(cuid())
+  name      String
+  code      String
+  placement String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model Setting {
+  key   String @id
+  value String
+}
+
+model AdPattern {
+  id      String  @id @default(cuid())
+  pattern String  @unique
+  enabled Boolean @default(false)
+  config  String
+}
+
+model Platform {
+  id            String  @id @default(cuid())
+  name          String
+  pattern       String
+  embedType     String
+  embedTemplate String?
+  needsProxy    Boolean @default(false)
+  enabled       Boolean @default(true)
+  order         Int     @default(0)
+}
+
+model DailyLimit {
+  ip      String   @id
+  count   Int      @default(0)
+  resetAt DateTime
+}
