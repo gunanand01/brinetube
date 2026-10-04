@@ -6,7 +6,7 @@ export async function GET(req: NextRequest) {
   if (pattern === 'all') {
     const ps = await db.adPattern.findMany();
     const cfg: any = {};
-    ps.forEach(p => cfg[`pattern${p.pattern}`] = { enabled: p.enabled, ...JSON.parse(p.config || '{}') });
+    ps.forEach((p: any) => cfg[`pattern${p.pattern}`] = { enabled: p.enabled, ...JSON.parse(p.config || '{}') });
     return NextResponse.json(cfg);
   }
   if (placement) {
