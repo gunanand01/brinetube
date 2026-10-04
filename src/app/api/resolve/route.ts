@@ -4,7 +4,7 @@ export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get('url');
   if (!url) return NextResponse.json({ error: 'url required' }, { status: 400 });
   const s = await db.setting.findMany({ where: { key: { in: ['resolverTemplate', 'resolverEnabled'] } } });
-  const map: any = {}; s.forEach(x => map[x.key] = x.value);
+  const map: any = {}; s.forEach((x: any) => map[x.key] = x.value);
   if (map.resolverEnabled === 'false') return NextResponse.json({ error: 'Resolver disabled by admin' }, { status: 503 });
   if (!map.resolverTemplate) return NextResponse.json({ error: 'Resolver template not configured in admin panel' }, { status: 500 });
   const target = map.resolverTemplate.replace('{url}', encodeURIComponent(url));
