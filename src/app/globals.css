@@ -1,7 +1,13 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-body { background: #0a0a0a; color: #e5e5e5; }
+
+body {
+  background: var(--bg-color, #0a0a0a);
+  color: #e5e5e5;
+  font-family: var(--font-family, 'Inter'), sans-serif;
+}
+
 .btn { @apply px-4 py-2 rounded-lg font-medium transition; }
 .btn-primary { @apply bg-blue-600 hover:bg-blue-700 text-white; }
 .btn-secondary { @apply bg-neutral-800 hover:bg-neutral-700 text-neutral-200; }
