@@ -5,7 +5,6 @@ generator client {
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
-  directUrl = env("TURSO_DATABASE_URL")
 }
 
 model Video {
