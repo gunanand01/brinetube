@@ -2,10 +2,20 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { db } from "@/lib/db";
 
-export const metadata: Metadata = {
-  title: "BrineTube",
-  description: "Stream & Download Media Directly",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    const settings = await db.siteSettings.findUnique({ where: { id: 1 } });
+    return {
+      title: settings?.siteName || "BrineTube",
+      description: settings?.tagline || "Stream & Download Media Directly",
+    };
+  } catch {
+    return {
+      title: "BrineTube",
+      description: "Stream & Download Media Directly",
+    };
+  }
+}
 
 export default async function RootLayout({
   children,
@@ -23,6 +33,7 @@ export default async function RootLayout({
   const bgColor = settings?.backgroundColor || "#0f172a";
   const fontFamily = settings?.fontFamily || "Inter";
   const borderRadius = settings?.borderRadius || "0.5rem";
+  const logoUrl = settings?.logoUrl || "";
 
   return (
     <html lang="en">
