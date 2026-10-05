@@ -51,3 +51,38 @@ model DailyLimit {
   count   Int      @default(0)
   resetAt DateTime
 }
+model SiteSettings {
+  id              Int      @id @default(1)
+  siteName        String   @default("BrineTube")
+  tagline         String   @default("Stream & Download Media Directly")
+  primaryColor    String   @default("#3b82f6")
+  backgroundColor String   @default("#0f172a")
+  logoUrl         String?
+  fontFamily      String   @default("Inter")
+  borderRadius    String   @default("0.5rem")
+  maintenanceMode Boolean  @default(false)
+  downloadEnabled Boolean  @default(true)
+  updatedAt       DateTime @updatedAt
+}
+
+model PlatformConfig {
+  id         String   @id @default(uuid())
+  platform   String   @unique
+  isActive   Boolean  @default(true)
+  proxyPool  String   @default("[]")
+  cookies    String?
+  rateLimit  Int      @default(100)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model ExtractionCache {
+  id          String   @id @default(uuid())
+  originalUrl String   @unique
+  platform    String
+  title       String
+  thumbnails  String   @default("[]")
+  formats     String   @default("[]")
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+}
