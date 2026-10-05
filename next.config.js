@@ -3,7 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: false,
   experimental: {
-    forceSwcTransforms: false,
+    serverComponentsExternalPackages: ['@prisma/adapter-libsql', '@libsql/client'],
   },
 };
 module.exports = nextConfig;
