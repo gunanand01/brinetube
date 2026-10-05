@@ -7,6 +7,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <Link href="/admin" className="font-bold text-blue-500">BrineTube Admin</Link>
         <Link href="/admin/videos" className="text-sm hover:text-blue-400">Videos</Link>
         <Link href="/admin/platforms" className="text-sm hover:text-blue-400">Platforms</Link>
+        <Link href="/admin/platforms/config" className="text-sm hover:text-blue-400">Platform Configs</Link>
         <Link href="/admin/ads" className="text-sm hover:text-blue-400">Ads</Link>
         <Link href="/admin/limits" className="text-sm hover:text-blue-400">Limits</Link>
         <Link href="/admin/resolver" className="text-sm hover:text-blue-400">Resolver</Link>
