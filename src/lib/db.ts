@@ -1,4 +1,4 @@
-	mport { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { PrismaLibSQL } from '@prisma/adapter-libsql';
 
 const adapter = new PrismaLibSQL({
