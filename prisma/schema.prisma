@@ -114,3 +114,13 @@ model Cookie {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
+model ProviderType {
+  id           String   @id @default(uuid())
+  slug         String   @unique
+  label        String
+  description  String?
+  configFields String   @default("[]")
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
