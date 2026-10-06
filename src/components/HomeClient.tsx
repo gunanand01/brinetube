@@ -11,13 +11,10 @@ interface HomeClientProps {
     logoUrl: string;
     platformsLabel: string;
   };
-  platforms: any[];
-  videos: any[];
 }
 
-export default function HomeClient({ settings, platforms, videos: initialVideos }: HomeClientProps) {
+export default function HomeClient({ settings }: HomeClientProps) {
   const [url, setUrl] = useState('');
-  const [videos, setVideos] = useState(initialVideos);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -40,53 +37,188 @@ export default function HomeClient({ settings, platforms, videos: initialVideos 
   }
 
   return (
-    <main className="max-w-6xl mx-auto px-4 py-8">
-      {settings.logoUrl && (
-        <img src={settings.logoUrl} alt="Logo" className="h-16 mb-4" />
-      )}
-      <h1 className="text-3xl font-bold mb-2">{settings.siteName}</h1>
-      <p className="text-neutral-400 text-sm mb-6">{settings.tagline}</p>
+    <main className="max-w-5xl mx-auto px-4 py-8">
+      {/* Hero Section */}
+      <section className="text-center mb-10">
+        {settings.logoUrl && (
+          <img
+            src={settings.logoUrl}
+            alt={settings.siteName}
+            className="h-20 mx-auto mb-4"
+          />
+        )}
+        <h1 className="text-4xl md:text-5xl font-bold mb-3">
+          {settings.siteName}
+        </h1>
+        <p className="text-lg text-neutral-400 mb-8 max-w-2xl mx-auto">
+          {settings.tagline}
+        </p>
+
+        {/* URL Input */}
+        <div className="card max-w-2xl mx-auto">
+          <div className="flex gap-2">
+            <input
+              className="input"
+              placeholder="Paste video link here..."
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && add()}
+            />
+            <button className="btn btn-primary" onClick={add} disabled={loading}>
+              {loading ? '...' : 'Play'}
+            </button>
+          </div>
+        </div>
+      </section>
 
       <AdSlot placement="header" />
 
-      <div className="card mb-8">
-        <div className="flex gap-2">
-          <input
-            className="input"
-            placeholder="Paste video link here..."
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && add()}
-          />
-          <button className="btn btn-primary" onClick={add} disabled={loading}>
-            {loading ? '...' : 'Play'}
-          </button>
+      {/* Supported Platforms */}
+      <section className="my-12">
+        <h2 className="text-2xl font-bold text-center mb-6">
+          {settings.platformsLabel || 'Supported Platforms'}
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-4xl mx-auto">
+          {[
+            'YouTube', 'Instagram', 'Dailymotion', 'Vimeo',
+            'Facebook', 'Twitter/X', 'Reddit', 'TikTok',
+            'Terabox', 'Streamtape', 'VidBunker', 'Filemoon',
+          ].map((p) => (
+            <div key={p} className="card text-center py-3 text-sm">
+              {p}
+            </div>
+          ))}
         </div>
-      </div>
-
-      {platforms.length > 0 && (
-        <div className="mb-8 text-center">
-          <p className="text-sm text-neutral-500 mb-3">{settings.platformsLabel}</p>
-          <div className="flex flex-wrap justify-center gap-2">
-            {platforms.map((p) => (
-              <span key={p.id} className="tag">{p.name}</span>
-            ))}
-          </div>
-        </div>
-      )}
+      </section>
 
       <AdSlot placement="grid" />
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-        {videos.map((v) => (
-          <a key={v.id} href={`/watch/${v.id}`} className="card hover:border-blue-600 transition">
-            <div className="aspect-video bg-neutral-800 rounded-lg mb-3 flex items-center justify-center text-neutral-600">
-              {v.platform}
+      {/* Features */}
+      <section className="my-12 max-w-4xl mx-auto">
+        <h2 className="text-2xl font-bold text-center mb-6">
+          Why Choose {settings.siteName}?
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="card">
+            <h3 className="font-bold mb-2">Fast Streaming</h3>
+            <p className="text-sm text-neutral-400">
+              Stream videos directly from popular platforms without any delays.
+              Our optimized servers ensure smooth playback.
+            </p>
+          </div>
+          <div className="card">
+            <h3 className="font-bold mb-2">Download in HD</h3>
+            <p className="text-sm text-neutral-400">
+              Download videos in 1080p, 720p, 480p, and more. Save your favorite
+              content for offline viewing.
+            </p>
+          </div>
+          <div className="card">
+            <h3 className="font-bold mb-2">No Registration</h3>
+            <p className="text-sm text-neutral-400">
+              No sign-up required. Just paste your link and start watching.
+              Completely free to use.
+            </p>
+          </div>
+          <div className="card">
+            <h3 className="font-bold mb-2">Multiple Platforms</h3>
+            <p className="text-sm text-neutral-400">
+              Support for YouTube, Instagram, Terabox, Facebook, and many more
+              video platforms.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <AdSlot placement="before_player" />
+
+      {/* How to Use */}
+      <section className="my-12 max-w-3xl mx-auto">
+        <h2 className="text-2xl font-bold text-center mb-6">
+          How to Use {settings.siteName}
+        </h2>
+        <div className="space-y-4">
+          <div className="card flex items-start gap-4">
+            <div className="text-2xl font-bold text-blue-500">1</div>
+            <div>
+              <h3 className="font-bold mb-1">Copy Video Link</h3>
+              <p className="text-sm text-neutral-400">
+                Copy the video URL from YouTube, Instagram, or any supported platform.
+              </p>
             </div>
-            <h3 className="font-medium truncate">{v.title}</h3>
-            <p className="text-xs text-neutral-500 mt-1">{v.views} views</p>
-          </a>
-        ))}
+          </div>
+          <div className="card flex items-start gap-4">
+            <div className="text-2xl font-bold text-blue-500">2</div>
+            <div>
+              <h3 className="font-bold mb-1">Paste & Play</h3>
+              <p className="text-sm text-neutral-400">
+                Paste the link in the box above and click Play.
+              </p>
+            </div>
+          </div>
+          <div className="card flex items-start gap-4">
+            <div className="text-2xl font-bold text-blue-500">3</div>
+            <div>
+              <h3 className="font-bold mb-1">Watch or Download</h3>
+              <p className="text-sm text-neutral-400">
+                Stream directly or download in your preferred quality.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <AdSlot placement="after_player" />
+
+      {/* FAQ */}
+      <section className="my-12 max-w-3xl mx-auto">
+        <h2 className="text-2xl font-bold text-center mb-6">
+          Frequently Asked Questions
+        </h2>
+        <div className="space-y-3">
+          <details className="card">
+            <summary className="font-bold cursor-pointer">
+              Is {settings.siteName} free to use?
+            </summary>
+            <p className="text-sm text-neutral-400 mt-2">
+              Yes, completely free. No registration or payment required.
+            </p>
+          </details>
+          <details className="card">
+            <summary className="font-bold cursor-pointer">
+              Which platforms are supported?
+            </summary>
+            <p className="text-sm text-neutral-400 mt-2">
+              YouTube, Instagram, Facebook, Dailymotion, Terabox, and many more.
+            </p>
+          </details>
+          <details className="card">
+            <summary className="font-bold cursor-pointer">
+              Can I download videos in HD?
+            </summary>
+            <p className="text-sm text-neutral-400 mt-2">
+              Yes. Download in 1080p, 720p, 480p, and other available qualities.
+            </p>
+          </details>
+          <details className="card">
+            <summary className="font-bold cursor-pointer">
+              Do you store my downloaded videos?
+            </summary>
+            <p className="text-sm text-neutral-400 mt-2">
+              No. We don't store or track any downloads. Your privacy is respected.
+            </p>
+          </details>
+        </div>
+      </section>
+
+      {/* Footer / SEO Text */}
+      <section className="my-12 text-center text-sm text-neutral-500">
+        <p className="max-w-3xl mx-auto">
+          {settings.siteName} is a free online video streaming and download platform.
+          Watch and download videos from YouTube, Instagram, Facebook, Terabox, Dailymotion,
+          and many other popular platforms. No registration required. Enjoy high-quality
+          streaming in HD, 1080p, 720p, 480p. Fast, free, and secure.
+        </p>
       </section>
 
       <AdSlot placement="footer" />

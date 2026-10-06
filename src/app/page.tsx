@@ -8,11 +8,8 @@ export default async function HomePage() {
     siteName: 'BrineTube',
     tagline: 'Stream & Download Media Directly',
     logoUrl: '',
-    platformsLabel: 'Supported platforms',
+    platformsLabel: 'Supported Platforms',
   };
-
-  let platforms: any[] = [];
-  let videos: any[] = [];
 
   try {
     const dbSettings = await db.siteSettings.findUnique({ where: { id: 1 } });
@@ -21,28 +18,12 @@ export default async function HomePage() {
         siteName: dbSettings.siteName || 'BrineTube',
         tagline: dbSettings.tagline || 'Stream & Download Media Directly',
         logoUrl: dbSettings.logoUrl || '',
-        platformsLabel: 'Supported platforms',
+        platformsLabel: 'Supported Platforms',
       };
     }
-
-    platforms = await db.platform.findMany({
-      where: { enabled: true },
-      orderBy: { order: 'asc' },
-    });
-
-    videos = await db.video.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 60,
-    });
   } catch (error) {
-    console.error('Failed to load homepage data:', error);
+    console.error('Failed to load settings:', error);
   }
 
-  return (
-    <HomeClient
-      settings={settings}
-      platforms={platforms}
-      videos={videos}
-    />
-  );
+  return <HomeClient settings={settings} />;
 }

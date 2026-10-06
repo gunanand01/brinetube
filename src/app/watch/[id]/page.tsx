@@ -75,6 +75,7 @@ export default function Watch() {
       ) : (
         <>
           <AdSlot placement="before_player" />
+
           <div className="aspect-video bg-black rounded-xl overflow-hidden mb-4">
             {extracting ? (
               <div className="w-full h-full flex items-center justify-center text-neutral-500">
@@ -135,10 +136,6 @@ export default function Watch() {
           )}
 
           <AdSlot placement="after_player" />
-          <h1 className="text-xl font-bold mb-2">{video.title}</h1>
-          <p className="text-sm text-neutral-400">
-            {video.platform} • {video.views} views
-          </p>
         </>
       )}
       <AdSlot placement="footer" />
