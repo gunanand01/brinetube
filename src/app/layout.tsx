@@ -2,17 +2,23 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { db } from "@/lib/db";
 
+const verification = {
+  google: "4NYNXnhImIEcPY-e8rB3_qHJbCIgOaiYS4kIrxPRiMo",
+};
+
 export async function generateMetadata(): Promise<Metadata> {
   try {
     const settings = await db.siteSettings.findUnique({ where: { id: 1 } });
     return {
       title: settings?.siteName || "BrineTube",
       description: settings?.tagline || "Stream & Download Media Directly",
+      verification,
     };
   } catch {
     return {
       title: "BrineTube",
       description: "Stream & Download Media Directly",
+      verification,
     };
   }
 }
@@ -33,7 +39,6 @@ export default async function RootLayout({
   const bgColor = settings?.backgroundColor || "#0f172a";
   const fontFamily = settings?.fontFamily || "Inter";
   const borderRadius = settings?.borderRadius || "0.5rem";
-  const logoUrl = settings?.logoUrl || "";
 
   return (
     <html lang="en">
