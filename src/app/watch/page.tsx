@@ -18,15 +18,15 @@ function WatchContent() {
   useEffect(() => {
     if (!videoUrl) return;
 
-    // Daily limit check
+    // Start extraction IMMEDIATELY (parallel with limit check)
+    attemptExtraction(videoUrl);
+
+    // Check daily limit in parallel
     fetch('/api/limits', { method: 'POST' })
       .then((r) => r.json())
       .then((d) => {
         if (d.blocked) setBlocked(d.message);
-        else {
-          setUnlocked(true);
-          attemptExtraction(videoUrl);
-        }
+        else setUnlocked(true);
       });
   }, [videoUrl]);
 
