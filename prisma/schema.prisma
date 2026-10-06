@@ -86,3 +86,31 @@ model ExtractionCache {
   expiresAt   DateTime
   createdAt   DateTime @default(now())
 }
+model ExtractionProvider {
+  id           String   @id @default(uuid())
+  name         String
+  type         String
+  priority     Int      @default(0)
+  enabled      Boolean  @default(true)
+  platforms    String   @default("[]")
+  config       String   @default("{}")
+  lastStatus   String?
+  lastError    String?
+  lastTestAt   DateTime?
+  successCount Int      @default(0)
+  failCount    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Cookie {
+  id         String   @id @default(uuid())
+  platform   String   @unique
+  cookies    String
+  expiresAt  DateTime
+  pastedAt   DateTime @default(now())
+  lastUsedAt DateTime?
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
