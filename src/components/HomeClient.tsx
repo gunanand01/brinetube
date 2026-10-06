@@ -80,9 +80,18 @@ export default function HomeClient({ settings }: HomeClientProps) {
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-4xl mx-auto">
           {[
-            'YouTube', 'Instagram', 'Dailymotion', 'Vimeo',
-            'Facebook', 'Twitter/X', 'Reddit', 'TikTok',
-            'Terabox', 'Streamtape', 'VidBunker', 'Filemoon',
+            'YouTube',
+            'Instagram',
+            'Dailymotion',
+            'Vimeo',
+            'Facebook',
+            'Twitter/X',
+            'Reddit',
+            'TikTok',
+            'Terabox',
+            'Streamtape',
+            'VidBunker',
+            'Filemoon',
           ].map((p) => (
             <div key={p} className="card text-center py-3 text-sm">
               {p}
@@ -102,8 +111,8 @@ export default function HomeClient({ settings }: HomeClientProps) {
           <div className="card">
             <h3 className="font-bold mb-2">Fast Streaming</h3>
             <p className="text-sm text-neutral-400">
-              Stream videos directly from popular platforms without any delays.
-              Our optimized servers ensure smooth playback.
+              Stream videos directly from popular platforms without delays. Our
+              optimized servers ensure smooth playback.
             </p>
           </div>
           <div className="card">
@@ -143,7 +152,8 @@ export default function HomeClient({ settings }: HomeClientProps) {
             <div>
               <h3 className="font-bold mb-1">Copy Video Link</h3>
               <p className="text-sm text-neutral-400">
-                Copy the video URL from YouTube, Instagram, or any supported platform.
+                Copy the video URL from YouTube, Instagram, or any supported
+                platform.
               </p>
             </div>
           </div>
@@ -169,6 +179,52 @@ export default function HomeClient({ settings }: HomeClientProps) {
       </section>
 
       <AdSlot placement="after_player" />
+
+      {/* Latest Articles */}
+      <section className="my-12 max-w-4xl mx-auto">
+        <h2 className="text-2xl font-bold text-center mb-6">Latest Articles</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <a
+            href="/blog/how-to-download-instagram-videos"
+            className="card hover:border-blue-600 transition"
+          >
+            <h3 className="font-bold mb-2">
+              How to Download Instagram Videos in HD
+            </h3>
+            <p className="text-sm text-neutral-400">
+              Step-by-step guide to download Instagram reels and videos.
+            </p>
+          </a>
+          <a
+            href="/blog/how-to-download-youtube-videos"
+            className="card hover:border-blue-600 transition"
+          >
+            <h3 className="font-bold mb-2">
+              How to Download YouTube Videos
+            </h3>
+            <p className="text-sm text-neutral-400">
+              Complete guide for 1080p, 720p, and 480p downloads.
+            </p>
+          </a>
+          <a
+            href="/blog/best-video-downloader-2026"
+            className="card hover:border-blue-600 transition"
+          >
+            <h3 className="font-bold mb-2">Best Free Video Downloader 2026</h3>
+            <p className="text-sm text-neutral-400">
+              Compare top video downloader tools available.
+            </p>
+          </a>
+        </div>
+        <div className="text-center mt-6">
+          <a
+            href="/blog"
+            className="text-blue-400 hover:text-blue-300 text-sm font-medium"
+          >
+            View All Articles →
+          </a>
+        </div>
+      </section>
 
       {/* FAQ */}
       <section className="my-12 max-w-3xl mx-auto">
@@ -205,7 +261,8 @@ export default function HomeClient({ settings }: HomeClientProps) {
               Do you store my downloaded videos?
             </summary>
             <p className="text-sm text-neutral-400 mt-2">
-              No. We don't store or track any downloads. Your privacy is respected.
+              No. We don&apos;t store or track any downloads. Your privacy is
+              respected.
             </p>
           </details>
         </div>
@@ -214,10 +271,11 @@ export default function HomeClient({ settings }: HomeClientProps) {
       {/* Footer / SEO Text */}
       <section className="my-12 text-center text-sm text-neutral-500">
         <p className="max-w-3xl mx-auto">
-          {settings.siteName} is a free online video streaming and download platform.
-          Watch and download videos from YouTube, Instagram, Facebook, Terabox, Dailymotion,
-          and many other popular platforms. No registration required. Enjoy high-quality
-          streaming in HD, 1080p, 720p, 480p. Fast, free, and secure.
+          {settings.siteName} is a free online video streaming and download
+          platform. Watch and download videos from YouTube, Instagram, Facebook,
+          Terabox, Dailymotion, and many other popular platforms. No
+          registration required. Enjoy high-quality streaming in HD, 1080p,
+          720p, 480p. Fast, free, and secure.
         </p>
       </section>
 
