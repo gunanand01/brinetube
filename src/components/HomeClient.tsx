@@ -18,23 +18,11 @@ export default function HomeClient({ settings }: HomeClientProps) {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  async function add() {
-    if (!url.trim()) return;
-    setLoading(true);
-    const res = await fetch('/api/videos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url }),
-    });
-    const d = await res.json();
-    setLoading(false);
-    if (d.video) {
-      setUrl('');
-      router.push(`/watch/${d.video.id}`);
-    } else {
-      alert(d.error || 'Failed');
-    }
-  }
+function add() {
+  if (!url.trim()) return;
+  setLoading(true);
+  router.push(`/watch?url=${encodeURIComponent(url)}`);
+}
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-8">
