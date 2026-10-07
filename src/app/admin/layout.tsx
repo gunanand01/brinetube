@@ -1,22 +1,67 @@
 import Link from 'next/link';
+import { 
+  LayoutDashboard, 
+  MonitorPlay, 
+  Settings2, 
+  Cookie, 
+  Activity, 
+  Link as LinkIcon, 
+  Palette, 
+  Settings 
+} from 'lucide-react';
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+const navigation = [
+  { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+  { name: 'Platforms (Direct)', href: '/admin/platforms', icon: MonitorPlay },
+  // Removed legacy 'Platform Configs' completely
+  { name: 'Providers', href: '/admin/providers', icon: Activity },
+  { name: 'Provider Types', href: '/admin/providers/types', icon: Settings2 },
+  { name: 'Cookies Pool', href: '/admin/cookies', icon: Cookie },
+  { name: 'Ads Management', href: '/admin/ads', icon: Activity },
+  { name: 'Limits & Blocks', href: '/admin/limits', icon: Activity },
+  { name: 'Resolver', href: '/admin/resolver', icon: LinkIcon },
+  { name: 'Appearance', href: '/admin/appearance', icon: Palette },
+  { name: 'Settings', href: '/admin/settings', icon: Settings },
+];
+
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100">
-      <nav className="border-b border-neutral-800 px-6 py-3 flex gap-4 items-center flex-wrap text-sm">
-        <Link href="/admin" className="font-bold text-blue-500">BrineTube Admin</Link>
-        <Link href="/admin/platforms" className="hover:text-blue-400">Platforms</Link>
-        <Link href="/admin/platforms/config" className="hover:text-blue-400">Platform Configs</Link>
-        <Link href="/admin/providers" className="hover:text-blue-400">Providers</Link>
-        <Link href="/admin/cookies" className="hover:text-blue-400">Cookies</Link>
-        <Link href="/admin/ads" className="hover:text-blue-400">Ads</Link>
-        <Link href="/admin/limits" className="hover:text-blue-400">Limits</Link>
-        <Link href="/admin/resolver" className="hover:text-blue-400">Resolver</Link>
-        <Link href="/admin/appearance" className="hover:text-blue-400">Appearance</Link>
-        <Link href="/admin/settings" className="hover:text-blue-400">Settings</Link>
-        <Link href="/" className="ml-auto hover:text-blue-400">← Site</Link>
-      </nav>
-      <div className="p-6 max-w-6xl mx-auto">{children}</div>
+    <div className="min-h-screen bg-slate-950 flex flex-col md:flex-row">
+      {/* Sidebar */}
+      <aside className="w-full md:w-64 bg-slate-900 border-r border-slate-800 flex-shrink-0">
+        <div className="p-4 border-b border-slate-800">
+          <h2 className="text-xl font-bold text-white tracking-tight">
+            <span className="text-blue-500">Brine</span>Tube <span className="text-sm font-normal text-slate-400">Admin</span>
+          </h2>
+        </div>
+        <nav className="p-4 space-y-1 overflow-y-auto h-[calc(100vh-73px)]">
+          {navigation.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                <Icon className="w-5 h-5 text-slate-400" />
+                {item.name}
+              </Link>
+            );
+          })}
+        </nav>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto bg-slate-950 p-4 md:p-8">
+        <div className="max-w-6xl mx-auto">
+          {children}
+        </div>
+      </main>
     </div>
   );
 }
+

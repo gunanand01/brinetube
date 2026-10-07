@@ -1,355 +1,252 @@
-import { db } from './db';
+import { prisma } from '@/lib/prisma';
 
-interface ExtractedMedia {
-  title: string;
-  thumbnails: { url: string }[];
-  formats: {
-    quality: string;
-    url: string;
-    ext: string;
-    hasAudio: boolean;
-    hasVideo: boolean;
-  }[];
-}
-
-function getYoutubeId(url: string) {
-  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-  const match = url.match(regExp);
-  return match && match[2].length === 11 ? match[2] : null;
-}
-
-// ==========================================
-// HANDLERS
-// ==========================================
-
-async function handleCobalt(url: string, config: any): Promise<ExtractedMedia> {
-  const apiUrl = config.apiUrl || 'https://co.wuk.sh/api/json';
-  const res = await fetch(apiUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: JSON.stringify({ url, videoQuality: '1080' }),
+export async function extractVideo(url: string, platform: string) {
+  // 1. Check Turso ExtractionCache (2hr TTL)
+  const cached = await prisma.extractionCache.findUnique({
+    where: { originalUrl: url }
   });
 
-  if (!res.ok) throw new Error('Cobalt API failed');
-  const data = await res.json();
-
-  if (data.status !== 'redirect' && data.status !== 'stream') {
-    throw new Error('Cobalt did not return a direct link');
+  if (cached && cached.expiresAt > new Date()) {
+    return {
+      title: cached.title,
+      thumbnails: JSON.parse(cached.thumbnails as string),
+      formats: JSON.parse(cached.formats as string)
+    };
   }
 
-  return {
-    title: 'Cobalt Extracted Video',
-    thumbnails: [],
-    formats: [
-      {
-        quality: 'Best Available',
-        url: data.url,
-        ext: 'mp4',
-        hasAudio: true,
-        hasVideo: true,
-      },
-    ],
-  };
-}
+  // 2. Fetch Active Providers based on priority
+  const providers = await prisma.extractionProvider.findMany({
+    where: { enabled: true },
+    orderBy: { priority: 'asc' }
+  });
 
-async function handlePiped(url: string, config: any): Promise<ExtractedMedia> {
-  const videoId = getYoutubeId(url);
-  if (!videoId) throw new Error('Invalid YouTube URL for Piped');
+  let lastError = "No active providers found for this platform.";
 
-  const instances = (config.instance || 'https://pipedapi.kavin.rocks')
-    .split(',')
-    .map((s: string) => s.trim());
-
-  let lastError: any = null;
-
-  for (const instance of instances) {
+  // 3. Multi-Provider Fallback Loop
+  for (const provider of providers) {
     try {
-      const res = await fetch(`${instance}/streams/${videoId}`);
-      if (!res.ok) throw new Error(`Piped instance ${instance} failed`);
+      const platformsList = JSON.parse(provider.platforms as string);
+      if (!platformsList.includes(platform)) continue;
 
-      const data = await res.json();
+      const config = JSON.parse(provider.config as string);
+      let result;
 
-      const formats = [
-        ...(data.videoStreams || []).map((s: any) => ({
-          quality: s.quality || 'unknown',
-          url: s.url,
-          ext: s.mimeType ? s.mimeType.split(';')[0].split('/')[1] : 'mp4',
-          hasAudio: !s.videoOnly,
-          hasVideo: true,
-        })),
-        ...(data.audioStreams || []).map((s: any) => ({
-          quality: 'audio',
-          url: s.url,
-          ext: s.mimeType ? s.mimeType.split(';')[0].split('/')[1] : 'm4a',
-          hasAudio: true,
-          hasVideo: false,
-        })),
-      ].filter((f: any) => f.url);
+      // Handle based on ProviderType
+      switch (provider.type) {
+        case 'ytdlp_cookie':
+        case 'ytdlp_proxy':
+          result = await handleRenderExtractor(url, config, platform, provider.type);
+          break;
+        case 'cobalt':
+          result = await handleCobalt(url, config);
+          break;
+        case 'piped':
+          result = await handlePiped(url, config);
+          break;
+        case 'rapidapi_yt':
+        case 'rapidapi_ig':
+          result = await handleRapidAPI(url, config);
+          break;
+        default:
+          throw new Error(`Unknown provider type: ${provider.type}`);
+      }
 
-      if (formats.length === 0) throw new Error('No formats from Piped');
+      if (result && result.formats && result.formats.length > 0) {
+        // Success: Update Analytics
+        await prisma.extractionProvider.update({
+          where: { id: provider.id },
+          data: {
+            successCount: { increment: 1 },
+            lastStatus: 'success',
+            lastTestAt: new Date()
+          }
+        });
 
-      return {
-        title: data.title || 'YouTube Video',
-        thumbnails: data.thumbnailUrl ? [{ url: data.thumbnailUrl }] : [],
-        formats,
-      };
-    } catch (err) {
-      lastError = err;
-      continue;
+        // Save to Cache
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 2);
+        
+        // Upsert format for Turso SQLite
+        await prisma.extractionCache.upsert({
+          where: { originalUrl: url },
+          update: {
+            title: result.title,
+            thumbnails: JSON.stringify(result.thumbnails),
+            formats: JSON.stringify(result.formats),
+            expiresAt,
+            platform
+          },
+          create: {
+            originalUrl: url,
+            title: result.title,
+            thumbnails: JSON.stringify(result.thumbnails),
+            formats: JSON.stringify(result.formats),
+            expiresAt,
+            platform
+          }
+        });
+
+        return result;
+      }
+    } catch (error: any) {
+      lastError = error.message;
+      
+      // Fail: Update Analytics & Auto-Disable Logic
+      const updatedProvider = await prisma.extractionProvider.update({
+        where: { id: provider.id },
+        data: {
+          failCount: { increment: 1 },
+          lastError: error.message,
+          lastStatus: 'failed',
+          lastTestAt: new Date()
+        }
+      });
+
+      // Auto-disable if 5+ consecutive fails and 0 success
+      if (updatedProvider.failCount >= 5 && updatedProvider.successCount === 0) {
+        await prisma.extractionProvider.update({
+          where: { id: provider.id },
+          data: { enabled: false }
+        });
+      }
     }
   }
 
-  throw lastError || new Error('All Piped instances failed');
+  // All providers failed
+  throw new Error(lastError);
 }
 
-async function handleRapidAPI(url: string, config: any): Promise<ExtractedMedia> {
-  const videoId = getYoutubeId(url);
-  if (!videoId) throw new Error('Invalid YouTube URL for RapidAPI');
-  if (!config.apiKey) throw new Error('RapidAPI key not configured');
+// ==========================================
+// PROVIDER HANDLERS
+// ==========================================
 
-  const res = await fetch(
-    `https://${config.apiHost || 'yt-api.p.rapidapi.com'}/dl?id=${videoId}`,
-    {
-      method: 'GET',
-      headers: {
-        'x-rapidapi-key': config.apiKey,
-        'x-rapidapi-host': config.apiHost || 'yt-api.p.rapidapi.com',
-      },
-    }
-  );
+async function handleRenderExtractor(url: string, config: any, platform: string, type: string) {
+  const extractorUrl = config.extractorUrl || process.env.EXTRACTOR_URL || 'https://brinetube-cf-proxy.brinetube.workers.dev/extract';
+  let payload: any = { url };
 
-  if (!res.ok) throw new Error('RapidAPI extraction failed');
-  const data = await res.json();
-
-  const formats = (data.formats || [])
-    .map((f: any) => ({
-      quality: f.qualityLabel || f.quality || 'unknown',
-      url: f.url,
-      ext: f.mimeType?.split(';')[0]?.split('/')[1] || 'mp4',
-      hasAudio: !!f.audioBitrate,
-      hasVideo: !!f.qualityLabel,
-    }))
-    .filter((f: any) => f.url);
-
-  if (formats.length === 0) throw new Error('No formats from RapidAPI');
-
-  return {
-    title: data.title || 'YouTube Video',
-    thumbnails: [
-      {
-        url:
-          data.thumbnail ||
-          `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-      },
-    ],
-    formats,
-  };
-}
-
-async function handleRenderExtractor(
-  url: string,
-  config: any,
-  platform: string
-): Promise<ExtractedMedia> {
-  const extractorUrl =
-    process.env.EXTRACTOR_URL ||
-    'https://brinetube-cf-proxy.brinetube.workers.dev/extract';
-
-  const payload: any = { url };
-
-  // Fetch cookies from Turso if available
-  try {
-    const cookie = await db.cookie.findFirst({
+  if (type === 'ytdlp_cookie') {
+    // 100% Multi-Cookie Pool Logic
+    const activeCookie = await prisma.cookie.findFirst({
       where: {
-        platform,
+        platform: platform,
         active: true,
-        expiresAt: { gt: new Date() },
+        expiresAt: { gt: new Date() }
       },
-      orderBy: [{ priority: 'asc' }, { lastUsedAt: 'asc' }],
+      orderBy: [
+        { priority: 'asc' },
+        { lastUsedAt: 'asc' } // Least recently used first (Rotation)
+      ]
     });
 
-    if (cookie) {
-      payload.cookies = cookie.cookies;
-      await db.cookie
-        .update({
-          where: { id: cookie.id },
-          data: { lastUsedAt: new Date() },
-        })
-        .catch(console.error);
+    if (activeCookie) {
+      payload.cookies = activeCookie.cookies;
+      // Update rotation timestamp
+      await prisma.cookie.update({
+        where: { id: activeCookie.id },
+        data: { lastUsedAt: new Date() }
+      });
+    } else {
+      throw new Error('No active cookies found in the pool for this platform.');
     }
-  } catch (err) {
-    console.error('Cookie fetch error:', err);
   }
 
-  if (config.proxy) payload.proxy = config.proxy;
+  if (type === 'ytdlp_proxy' && config.proxy) {
+    payload.proxy = config.proxy;
+  }
 
-  const res = await fetch(extractorUrl, {
+  const response = await fetch(extractorUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(payload)
   });
 
-  if (!res.ok) throw new Error('Render extractor failed');
-  const data = await res.json();
-
-  if (!data.formats || data.formats.length === 0) {
-    throw new Error('No formats from Render extractor');
+  if (!response.ok) {
+    throw new Error(`Render extraction failed: ${response.status}`);
   }
 
+  const data = await response.json();
+  if (!data.formats || data.formats.length === 0) {
+    throw new Error('Extracted empty formats. IP Blocked or Invalid Cookie.');
+  }
+
+  return data;
+}
+
+// Fallback skeleton handlers for others based on your architecture
+async function handleCobalt(url: string, config: any) {
+  const apiUrl = config.apiUrl || 'https://co.wuk.sh/api/json';
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify({ url, videoQuality: "1080" })
+  });
+  if (!response.ok) throw new Error('Cobalt API failed');
+  const data = await response.json();
+  
+  if (data.status === 'error') throw new Error(data.text);
+  
+  // Format mapping
   return {
-    title: data.title || 'Video',
-    thumbnails: data.thumbnails || [],
-    formats: data.formats || [],
+    title: 'Extracted Video',
+    thumbnails: [],
+    formats: [{
+      url: data.url,
+      quality: '1080p',
+      ext: 'mp4',
+      hasAudio: true,
+      hasVideo: true
+    }]
   };
 }
 
-// ==========================================
-// MAIN EXTRACTION
-// ==========================================
+async function handlePiped(url: string, config: any) {
+  const instance = config.instance || 'https://pipedapi.kavin.rocks';
+  const videoId = url.split('v=')[1]?.split('&')[0];
+  if (!videoId) throw new Error('Invalid YouTube URL for Piped');
 
-export async function getOrFetchExtraction(url: string, platform: string) {
-  try {
-    // 1. Cache check
-    const cached = await db.extractionCache.findUnique({
-      where: { originalUrl: url },
-    });
+  const response = await fetch(`${instance}/streams/${videoId}`);
+  if (!response.ok) throw new Error('Piped API failed');
+  const data = await response.json();
 
-    if (cached && new Date() < cached.expiresAt) {
-      return {
-        title: cached.title,
-        thumbnails: JSON.parse(cached.thumbnails),
-        formats: JSON.parse(cached.formats),
-        source: 'cache',
-      };
-    }
+  const formats = data.videoStreams.map((stream: any) => ({
+    url: stream.url,
+    quality: stream.quality,
+    ext: stream.format,
+    hasAudio: !stream.videoOnly,
+    hasVideo: true
+  }));
 
-    // 2. Get providers by priority
-    const providers = await db.extractionProvider.findMany({
-      where: { enabled: true },
-      orderBy: { priority: 'asc' },
-    });
-
-    let extractedData: ExtractedMedia | null = null;
-    let successfulProvider = 'none';
-
-    // 3. Fallback loop
-    for (const provider of providers) {
-      // Platform check
-      try {
-        const supportedPlatforms = JSON.parse(provider.platforms || '[]');
-        if (
-          !supportedPlatforms.includes(platform) &&
-          !supportedPlatforms.includes('all')
-        ) {
-          continue;
-        }
-      } catch {
-        continue;
-      }
-
-      const config = provider.config ? JSON.parse(provider.config) : {};
-
-      try {
-        let result: ExtractedMedia | null = null;
-
-        if (provider.type === 'cobalt') {
-          result = await handleCobalt(url, config);
-        } else if (provider.type === 'piped' || provider.type === 'invidious') {
-          result = await handlePiped(url, config);
-        } else if (provider.type.startsWith('rapidapi')) {
-          result = await handleRapidAPI(url, config);
-        } else if (
-          provider.type === 'ytdlp_cookie' ||
-          provider.type === 'ytdlp_proxy' ||
-          provider.type === 'ytdlp'
-        ) {
-          result = await handleRenderExtractor(url, config, platform);
-        }
-
-        if (result && result.formats && result.formats.length > 0) {
-          extractedData = result;
-          successfulProvider = provider.name;
-
-          // Success analytics
-          db.extractionProvider
-            .update({
-              where: { id: provider.id },
-              data: {
-                successCount: { increment: 1 },
-                lastStatus: 'success',
-                lastTestAt: new Date(),
-              },
-            })
-            .catch(console.error);
-
-          break;
-        }
-      } catch (error: any) {
-        console.error(
-          `[Fallback] Provider ${provider.name} failed:`,
-          error.message
-        );
-
-        // Fail analytics
-        const updated = await db.extractionProvider
-          .update({
-            where: { id: provider.id },
-            data: {
-              failCount: { increment: 1 },
-              lastStatus: 'failed',
-              lastError: error.message,
-              lastTestAt: new Date(),
-            },
-          })
-          .catch(() => null);
-
-        // Auto-disable if 5+ consecutive fails
-        if (updated && updated.failCount >= 5 && updated.successCount === 0) {
-          await db.extractionProvider
-            .update({
-              where: { id: provider.id },
-              data: { enabled: false },
-            })
-            .catch(console.error);
-        }
-
-        continue;
-      }
-    }
-
-    // 4. All failed
-    if (!extractedData) {
-      throw new Error('All extraction providers failed');
-    }
-
-    // 5. Cache success
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 2);
-
-    await db.extractionCache.upsert({
-      where: { originalUrl: url },
-      update: {
-        title: extractedData.title || 'Video',
-        thumbnails: JSON.stringify(extractedData.thumbnails || []),
-        formats: JSON.stringify(extractedData.formats || []),
-        expiresAt,
-      },
-      create: {
-        originalUrl: url,
-        platform: platform,
-        title: extractedData.title || 'Video',
-        thumbnails: JSON.stringify(extractedData.thumbnails || []),
-        formats: JSON.stringify(extractedData.formats || []),
-        expiresAt,
-      },
-    });
-
-    return { ...extractedData, source: successfulProvider };
-  } catch (error) {
-    console.error('Extractor Helper Error:', error);
-    throw error;
-  }
+  return {
+    title: data.title,
+    thumbnails: [{ url: data.thumbnailUrl }],
+    formats
+  };
 }
+
+async function handleRapidAPI(url: string, config: any) {
+  const videoId = url.split('v=')[1]?.split('&')[0];
+  if (!videoId) throw new Error('Invalid URL for RapidAPI');
+
+  const response = await fetch(`https://${config.apiHost}/dl?id=${videoId}`, {
+    headers: {
+      'x-rapidapi-key': config.apiKey,
+      'x-rapidapi-host': config.apiHost
+    }
+  });
+  
+  if (!response.ok) throw new Error('RapidAPI failed');
+  const data = await response.json();
+  
+  return {
+    title: data.title || 'Video',
+    thumbnails: [],
+    formats: [{
+      url: data.link,
+      quality: '720p',
+      ext: 'mp4',
+      hasAudio: true,
+      hasVideo: true
+    }]
+  };
+}
+
