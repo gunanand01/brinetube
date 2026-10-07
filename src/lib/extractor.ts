@@ -1,11 +1,7 @@
-// Hum default export ko db ke roop mein import kar rahe hain,
-// aur phir usko prisma variable mein assign kar rahe hain
-// taaki neeche ka code exactly waise hi chale.
-import db from './db';
-const prisma = db;
+import { db } from './db';
 
 export async function getOrFetchExtraction(url: string, platform: string = 'youtube') {
-  const cached = await prisma.extractionCache.findUnique({
+  const cached = await db.extractionCache.findUnique({
     where: { originalUrl: url }
   });
 
@@ -17,7 +13,7 @@ export async function getOrFetchExtraction(url: string, platform: string = 'yout
     };
   }
 
-  const providers = await prisma.extractionProvider.findMany({
+  const providers = await db.extractionProvider.findMany({
     where: { enabled: true },
     orderBy: { priority: 'asc' }
   });
@@ -52,7 +48,7 @@ export async function getOrFetchExtraction(url: string, platform: string = 'yout
       }
 
       if (result && result.formats && result.formats.length > 0) {
-        await prisma.extractionProvider.update({
+        await db.extractionProvider.update({
           where: { id: provider.id },
           data: { successCount: { increment: 1 }, lastStatus: 'success', lastTestAt: new Date() }
         });
@@ -60,7 +56,7 @@ export async function getOrFetchExtraction(url: string, platform: string = 'yout
         const expiresAt = new Date();
         expiresAt.setHours(expiresAt.getHours() + 2);
         
-        await prisma.extractionCache.upsert({
+        await db.extractionCache.upsert({
           where: { originalUrl: url },
           update: { title: result.title, thumbnails: JSON.stringify(result.thumbnails), formats: JSON.stringify(result.formats), expiresAt, platform },
           create: { originalUrl: url, title: result.title, thumbnails: JSON.stringify(result.thumbnails), formats: JSON.stringify(result.formats), expiresAt, platform }
@@ -71,13 +67,13 @@ export async function getOrFetchExtraction(url: string, platform: string = 'yout
     } catch (error: any) {
       lastError = error.message;
       
-      const updatedProvider = await prisma.extractionProvider.update({
+      const updatedProvider = await db.extractionProvider.update({
         where: { id: provider.id },
         data: { failCount: { increment: 1 }, lastError: error.message, lastStatus: 'failed', lastTestAt: new Date() }
       });
 
       if (updatedProvider.failCount >= 5 && updatedProvider.successCount === 0) {
-        await prisma.extractionProvider.update({
+        await db.extractionProvider.update({
           where: { id: provider.id },
           data: { enabled: false }
         });
@@ -93,14 +89,14 @@ async function handleRenderExtractor(url: string, config: any, platform: string,
   let payload: any = { url };
 
   if (type === 'ytdlp_cookie') {
-    const activeCookie = await prisma.cookie.findFirst({
+    const activeCookie = await db.cookie.findFirst({
       where: { platform: platform, active: true, expiresAt: { gt: new Date() } },
       orderBy: [{ priority: 'asc' }, { lastUsedAt: 'asc' }]
     });
 
     if (activeCookie) {
       payload.cookies = activeCookie.cookies;
-      await prisma.cookie.update({
+      await db.cookie.update({
         where: { id: activeCookie.id },
         data: { lastUsedAt: new Date() }
       });
