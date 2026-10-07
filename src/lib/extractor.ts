@@ -1,6 +1,9 @@
-import { prisma } from './db'; // Fix for the import error
+// Hum default export ko db ke roop mein import kar rahe hain,
+// aur phir usko prisma variable mein assign kar rahe hain
+// taaki neeche ka code exactly waise hi chale.
+import db from './db';
+const prisma = db;
 
-// Function renamed to match your API route expectations
 export async function getOrFetchExtraction(url: string, platform: string = 'youtube') {
   const cached = await prisma.extractionCache.findUnique({
     where: { originalUrl: url }
