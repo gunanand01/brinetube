@@ -1,7 +1,8 @@
-import db from './db';
+import { prisma } from './db'; // Fix for the import error
 
-export async function extractVideo(url: string, platform: string) {
-  const cached = await db.extractionCache.findUnique({
+// Function renamed to match your API route expectations
+export async function getOrFetchExtraction(url: string, platform: string = 'youtube') {
+  const cached = await prisma.extractionCache.findUnique({
     where: { originalUrl: url }
   });
 
@@ -13,12 +14,12 @@ export async function extractVideo(url: string, platform: string) {
     };
   }
 
-  const providers = await db.extractionProvider.findMany({
+  const providers = await prisma.extractionProvider.findMany({
     where: { enabled: true },
     orderBy: { priority: 'asc' }
   });
 
-  let lastError = "No active providers found.";
+  let lastError = "No active providers found for this platform.";
 
   for (const provider of providers) {
     try {
@@ -48,7 +49,7 @@ export async function extractVideo(url: string, platform: string) {
       }
 
       if (result && result.formats && result.formats.length > 0) {
-        await db.extractionProvider.update({
+        await prisma.extractionProvider.update({
           where: { id: provider.id },
           data: { successCount: { increment: 1 }, lastStatus: 'success', lastTestAt: new Date() }
         });
@@ -56,7 +57,7 @@ export async function extractVideo(url: string, platform: string) {
         const expiresAt = new Date();
         expiresAt.setHours(expiresAt.getHours() + 2);
         
-        await db.extractionCache.upsert({
+        await prisma.extractionCache.upsert({
           where: { originalUrl: url },
           update: { title: result.title, thumbnails: JSON.stringify(result.thumbnails), formats: JSON.stringify(result.formats), expiresAt, platform },
           create: { originalUrl: url, title: result.title, thumbnails: JSON.stringify(result.thumbnails), formats: JSON.stringify(result.formats), expiresAt, platform }
@@ -67,13 +68,13 @@ export async function extractVideo(url: string, platform: string) {
     } catch (error: any) {
       lastError = error.message;
       
-      const updatedProvider = await db.extractionProvider.update({
+      const updatedProvider = await prisma.extractionProvider.update({
         where: { id: provider.id },
         data: { failCount: { increment: 1 }, lastError: error.message, lastStatus: 'failed', lastTestAt: new Date() }
       });
 
       if (updatedProvider.failCount >= 5 && updatedProvider.successCount === 0) {
-        await db.extractionProvider.update({
+        await prisma.extractionProvider.update({
           where: { id: provider.id },
           data: { enabled: false }
         });
@@ -89,19 +90,19 @@ async function handleRenderExtractor(url: string, config: any, platform: string,
   let payload: any = { url };
 
   if (type === 'ytdlp_cookie') {
-    const activeCookie = await db.cookie.findFirst({
+    const activeCookie = await prisma.cookie.findFirst({
       where: { platform: platform, active: true, expiresAt: { gt: new Date() } },
       orderBy: [{ priority: 'asc' }, { lastUsedAt: 'asc' }]
     });
 
     if (activeCookie) {
       payload.cookies = activeCookie.cookies;
-      await db.cookie.update({
+      await prisma.cookie.update({
         where: { id: activeCookie.id },
         data: { lastUsedAt: new Date() }
       });
     } else {
-      throw new Error('No active cookies found.');
+      throw new Error('No active cookies found in the pool.');
     }
   }
 
@@ -115,9 +116,9 @@ async function handleRenderExtractor(url: string, config: any, platform: string,
     body: JSON.stringify(payload)
   });
 
-  if (!response.ok) throw new Error(`Render failed: ${response.status}`);
+  if (!response.ok) throw new Error(`Render extraction failed: ${response.status}`);
   const data = await response.json();
-  if (!data.formats || data.formats.length === 0) throw new Error('Blocked or Invalid Cookie.');
+  if (!data.formats || data.formats.length === 0) throw new Error('Blocked by IP or Invalid Cookie.');
 
   return data;
 }
@@ -129,11 +130,11 @@ async function handleCobalt(url: string, config: any) {
     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
     body: JSON.stringify({ url, videoQuality: "1080" })
   });
-  if (!response.ok) throw new Error('Cobalt failed');
+  if (!response.ok) throw new Error('Cobalt API failed');
   const data = await response.json();
   if (data.status === 'error') throw new Error(data.text);
   
-  return { title: 'Video', thumbnails: [], formats: [{ url: data.url, quality: '1080p', ext: 'mp4', hasAudio: true, hasVideo: true }] };
+  return { title: 'Extracted Video', thumbnails: [], formats: [{ url: data.url, quality: '1080p', ext: 'mp4', hasAudio: true, hasVideo: true }] };
 }
 
 async function handlePiped(url: string, config: any) {
@@ -142,7 +143,7 @@ async function handlePiped(url: string, config: any) {
   if (!videoId) throw new Error('Invalid YouTube URL');
 
   const response = await fetch(`${instance}/streams/${videoId}`);
-  if (!response.ok) throw new Error('Piped failed');
+  if (!response.ok) throw new Error('Piped API failed');
   const data = await response.json();
 
   const formats = data.videoStreams.map((stream: any) => ({ url: stream.url, quality: stream.quality, ext: stream.format, hasAudio: !stream.videoOnly, hasVideo: true }));
