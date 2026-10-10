@@ -5,14 +5,30 @@ import { useSearchParams } from 'next/navigation';
 import AdSlot from '@/components/AdSlot';
 import AdGate from '@/components/AdGate';
 
-function getCleanQuality(quality: string): string {
-  if (!quality) return 'HD';
-  const normalized = quality.toLowerCase();
+// Naya Smart Helper: Ab yeh actual resolution padhega
+function getCleanQuality(format: any): string {
+  // Sabse pehle height check karo (yt-dlp hamesha height bhejta hai)
+  if (format.height) {
+    return `${format.height}p`;
+  }
+  
+  // Fallback: Agar height nahi hai, toh label me resolution dhoondho
+  const q = (format.quality || format.format_note || format.resolution || '').toString().toLowerCase();
+  
+  if (q.includes('2160')) return '4K';
+  if (q.includes('1440')) return '1440p';
+  if (q.includes('1080')) return '1080p';
+  if (q.includes('720')) return '720p';
+  if (q.includes('480')) return '480p';
+  if (q.includes('360')) return '360p';
+  if (q.includes('240')) return '240p';
+  if (q.includes('144')) return '144p';
 
-  if (normalized === 'unknown') return '1080p';
-  if (normalized.includes('dash')) return 'HD Video';
+  // Agar sirf audio hai
+  if (format.hasAudio && !format.hasVideo) return 'Audio Only';
 
-  return quality;
+  // Default
+  return 'Normal';
 }
 
 function WatchContent() {
@@ -28,10 +44,8 @@ function WatchContent() {
   useEffect(() => {
     if (!videoUrl) return;
 
-    // Start extraction IMMEDIATELY (parallel with limit check)
     attemptExtraction(videoUrl);
 
-    // Check daily limit in parallel
     fetch('/api/limits', { method: 'POST' })
       .then((r) => r.json())
       .then((d) => {
@@ -125,8 +139,9 @@ function WatchContent() {
                     className="flex justify-between items-center bg-neutral-900 p-3 rounded border border-neutral-800"
                   >
                     <div className="flex flex-col">
+                      {/* Ab yahan format obj bhej rahe hain */}
                       <span className="font-semibold text-sm">
-                        {getCleanQuality(format.quality)}
+                        {getCleanQuality(format)}
                       </span>
                       <span className="text-xs text-neutral-500">
                         {format.hasAudio ? 'Video + Audio' : 'Video only'}
