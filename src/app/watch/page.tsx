@@ -5,6 +5,16 @@ import { useSearchParams } from 'next/navigation';
 import AdSlot from '@/components/AdSlot';
 import AdGate from '@/components/AdGate';
 
+function getCleanQuality(quality: string): string {
+  if (!quality) return 'HD';
+  const normalized = quality.toLowerCase();
+
+  if (normalized === 'unknown') return '1080p';
+  if (normalized.includes('dash')) return 'HD Video';
+
+  return quality;
+}
+
 function WatchContent() {
   const searchParams = useSearchParams();
   const videoUrl = searchParams.get('url');
@@ -81,19 +91,20 @@ function WatchContent() {
       ) : (
         <>
           <AdSlot placement="before_player" />
-
-          <div className="aspect-video bg-black rounded-xl overflow-hidden mb-4">
+          
+          <div className="card mb-6 aspect-video bg-black flex items-center justify-center overflow-hidden rounded-xl border border-neutral-800">
             {extracting ? (
-              <div className="w-full h-full flex items-center justify-center text-neutral-500">
-                Loading High-Quality Stream...
+              <div className="flex flex-col items-center justify-center gap-3">
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-sm text-neutral-400 font-medium">Extracting video...</span>
               </div>
             ) : mediaData ? (
-              <video
-                controls
-                autoPlay
+              <video 
+                controls 
+                autoPlay 
                 className="w-full h-full"
                 src={
-                  mediaData.formats.find((f: any) => f.hasAudio && f.hasVideo)?.url ||
+                  mediaData.formats.find((f: any) => f.hasAudio && f.hasVideo)?.url || 
                   mediaData.formats[0]?.url
                 }
               />
@@ -109,18 +120,20 @@ function WatchContent() {
               <h3 className="text-lg font-bold mb-3">⬇️ Download Options</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {mediaData.formats.slice(0, 10).map((format: any, index: number) => (
-                  <div
-                    key={index}
+                  <div 
+                    key={index} 
                     className="flex justify-between items-center bg-neutral-900 p-3 rounded border border-neutral-800"
                   >
                     <div className="flex flex-col">
-                      <span className="font-semibold text-sm">{format.quality}</span>
+                      <span className="font-semibold text-sm">
+                        {getCleanQuality(format.quality)}
+                      </span>
                       <span className="text-xs text-neutral-500">
                         {format.hasAudio ? 'Video + Audio' : 'Video only'}
                       </span>
                     </div>
-                    <a
-                      href={`/api/download?url=${encodeURIComponent(format.url)}`}
+                    <a 
+                      href={`/api/download?url=${encodeURIComponent(format.url)}`} 
                       target="_blank"
                       className="btn btn-primary text-sm"
                     >
@@ -147,3 +160,4 @@ export default function WatchPage() {
     </Suspense>
   );
 }
+
