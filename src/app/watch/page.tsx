@@ -5,14 +5,14 @@ import { useSearchParams } from 'next/navigation';
 import AdSlot from '@/components/AdSlot';
 import AdGate from '@/components/AdGate';
 
-// Naya Smart Helper: Ab yeh actual resolution padhega
+// Final Hybrid Helper: Numbers bhi pakdega, aur Instagram ke 'unknown' ko bhi HD banayega
 function getCleanQuality(format: any): string {
-  // Sabse pehle height check karo (yt-dlp hamesha height bhejta hai)
+  // 1. Agar exact height available hai (Youtube me)
   if (format.height) {
     return `${format.height}p`;
   }
   
-  // Fallback: Agar height nahi hai, toh label me resolution dhoondho
+  // 2. Agar string me resolution number chhupa hai
   const q = (format.quality || format.format_note || format.resolution || '').toString().toLowerCase();
   
   if (q.includes('2160')) return '4K';
@@ -24,11 +24,15 @@ function getCleanQuality(format: any): string {
   if (q.includes('240')) return '240p';
   if (q.includes('144')) return '144p';
 
-  // Agar sirf audio hai
+  // 3. Instagram ke raw labels fallback (Jo Normal ban rahe the)
+  if (q.includes('unknown')) return '1080p';
+  if (q.includes('dash')) return 'HD Video';
+
+  // 4. Agar sirf audio hai
   if (format.hasAudio && !format.hasVideo) return 'Audio Only';
 
-  // Default
-  return 'Normal';
+  // 5. Final premium fallback ('Normal' ki jagah 'HD' dikhega)
+  return 'HD';
 }
 
 function WatchContent() {
@@ -139,7 +143,6 @@ function WatchContent() {
                     className="flex justify-between items-center bg-neutral-900 p-3 rounded border border-neutral-800"
                   >
                     <div className="flex flex-col">
-                      {/* Ab yahan format obj bhej rahe hain */}
                       <span className="font-semibold text-sm">
                         {getCleanQuality(format)}
                       </span>
