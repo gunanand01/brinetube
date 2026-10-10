@@ -85,13 +85,13 @@ export async function getOrFetchExtraction(url: string, platform: string = 'yout
 }
 
 async function handleRenderExtractor(url: string, config: any, platform: string, type: string) {
-  // FIX: Added config.serverUrl exactly as saved from Admin UI
   const extractorUrl = config.serverUrl || config.extractorUrl || process.env.EXTRACTOR_URL || 'https://brinetube-cf-proxy.brinetube.workers.dev/extract';
   let payload: any = { url };
 
+  // FIX: Removed 'priority' from orderBy since it doesn't exist in the Cookie model
   const activeCookie = await db.cookie.findFirst({
     where: { platform: platform, active: true, expiresAt: { gt: new Date() } },
-    orderBy: [{ priority: 'asc' }, { lastUsedAt: 'asc' }]
+    orderBy: { lastUsedAt: 'asc' }
   });
 
   if (activeCookie) {
@@ -104,7 +104,6 @@ async function handleRenderExtractor(url: string, config: any, platform: string,
     throw new Error('No active cookies found in the pool.');
   }
 
-  // FIX: Checked config.proxyUrl exactly as saved from Admin UI
   if (config.proxyUrl || config.proxy) {
     payload.proxy = config.proxyUrl || config.proxy;
   }
