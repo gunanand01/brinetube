@@ -88,7 +88,6 @@ async function handleRenderExtractor(url: string, config: any, platform: string,
   const extractorUrl = config.serverUrl || config.extractorUrl || process.env.EXTRACTOR_URL || 'https://brinetube-cf-proxy.brinetube.workers.dev/extract';
   let payload: any = { url };
 
-  // FIX: Removed 'priority' from orderBy since it doesn't exist in the Cookie model
   const activeCookie = await db.cookie.findFirst({
     where: { platform: platform, active: true, expiresAt: { gt: new Date() } },
     orderBy: { lastUsedAt: 'asc' }
@@ -118,7 +117,41 @@ async function handleRenderExtractor(url: string, config: any, platform: string,
   const data = await response.json();
   if (!data.formats || data.formats.length === 0) throw new Error('Blocked by IP or Invalid Cookie.');
 
-  return data;
+  // NAYA LOGIC: Formatting yt-dlp raw data to clean UI labels
+  const cleanFormats = data.formats
+    .filter((f: any) => f.url)
+    .map((f: any) => {
+      let quality = f.format_note || f.resolution || '';
+      
+      // Agar DASH ya unknown likha hai, toh exact height nikalo (jaise 1080p, 720p)
+      if (quality.toLowerCase().includes('dash') || quality === 'unknown' || !quality) {
+        if (f.height) quality = `${f.height}p`;
+        else if (f.width) quality = `${f.width}p`; 
+        else quality = 'Normal';
+      }
+
+      // Agar still unknown reh gaya
+      if (quality === 'unknown') quality = 'Normal';
+
+      const hasVideo = f.vcodec !== 'none' && f.vcodec != null;
+      const hasAudio = f.acodec !== 'none' && f.acodec != null;
+
+      return {
+        url: f.url,
+        quality: quality,
+        ext: f.ext || 'mp4',
+        hasVideo,
+        hasAudio
+      };
+    })
+    // Sirf wahi options rakho jisme actual video ya audio ho, useless kachra hatao
+    .filter((f: any) => f.hasVideo || f.hasAudio);
+
+  return {
+    title: data.title || 'Extracted Video',
+    thumbnails: data.thumbnails || [],
+    formats: cleanFormats
+  };
 }
 
 async function handleCobalt(url: string, config: any) {
