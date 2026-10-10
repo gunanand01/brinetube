@@ -88,24 +88,24 @@ async function handleRenderExtractor(url: string, config: any, platform: string,
   const extractorUrl = config.extractorUrl || process.env.EXTRACTOR_URL || 'https://brinetube-cf-proxy.brinetube.workers.dev/extract';
   let payload: any = { url };
 
-  if (type === 'ytdlp_cookie') {
-    const activeCookie = await db.cookie.findFirst({
-      where: { platform: platform, active: true, expiresAt: { gt: new Date() } },
-      orderBy: [{ priority: 'asc' }, { lastUsedAt: 'asc' }]
-    });
+  // 1. Hamesha Cookie dhoondho (Chahe type cookie ho ya proxy)
+  const activeCookie = await db.cookie.findFirst({
+    where: { platform: platform, active: true, expiresAt: { gt: new Date() } },
+    orderBy: [{ priority: 'asc' }, { lastUsedAt: 'asc' }]
+  });
 
-    if (activeCookie) {
-      payload.cookies = activeCookie.cookies;
-      await db.cookie.update({
-        where: { id: activeCookie.id },
-        data: { lastUsedAt: new Date() }
-      });
-    } else {
-      throw new Error('No active cookies found in the pool.');
-    }
+  if (activeCookie) {
+    payload.cookies = activeCookie.cookies;
+    await db.cookie.update({
+      where: { id: activeCookie.id },
+      data: { lastUsedAt: new Date() }
+    });
+  } else if (type === 'ytdlp_cookie') {
+    throw new Error('No active cookies found in the pool.');
   }
 
-  if (type === 'ytdlp_proxy' && config.proxy) {
+  // 2. Hamesha Proxy dhoondho agar config mein hai (Cookie ke sath proxy zaroori hoti hai banned IPs pe)
+  if (config.proxy) {
     payload.proxy = config.proxy;
   }
 
