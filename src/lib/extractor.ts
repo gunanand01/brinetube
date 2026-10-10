@@ -85,10 +85,10 @@ export async function getOrFetchExtraction(url: string, platform: string = 'yout
 }
 
 async function handleRenderExtractor(url: string, config: any, platform: string, type: string) {
-  const extractorUrl = config.extractorUrl || process.env.EXTRACTOR_URL || 'https://brinetube-cf-proxy.brinetube.workers.dev/extract';
+  // FIX: Added config.serverUrl exactly as saved from Admin UI
+  const extractorUrl = config.serverUrl || config.extractorUrl || process.env.EXTRACTOR_URL || 'https://brinetube-cf-proxy.brinetube.workers.dev/extract';
   let payload: any = { url };
 
-  // 1. Hamesha Cookie dhoondho (Chahe type cookie ho ya proxy)
   const activeCookie = await db.cookie.findFirst({
     where: { platform: platform, active: true, expiresAt: { gt: new Date() } },
     orderBy: [{ priority: 'asc' }, { lastUsedAt: 'asc' }]
@@ -104,9 +104,9 @@ async function handleRenderExtractor(url: string, config: any, platform: string,
     throw new Error('No active cookies found in the pool.');
   }
 
-  // 2. Hamesha Proxy dhoondho agar config mein hai (Cookie ke sath proxy zaroori hoti hai banned IPs pe)
-  if (config.proxy) {
-    payload.proxy = config.proxy;
+  // FIX: Checked config.proxyUrl exactly as saved from Admin UI
+  if (config.proxyUrl || config.proxy) {
+    payload.proxy = config.proxyUrl || config.proxy;
   }
 
   const response = await fetch(extractorUrl, {
