@@ -5,36 +5,6 @@ import { useSearchParams } from 'next/navigation';
 import AdSlot from '@/components/AdSlot';
 import AdGate from '@/components/AdGate';
 
-// Final Hybrid Helper: Numbers bhi pakdega, aur Instagram ke 'unknown' ko bhi HD banayega
-function getCleanQuality(format: any): string {
-  // 1. Agar exact height available hai (Youtube me)
-  if (format.height) {
-    return `${format.height}p`;
-  }
-  
-  // 2. Agar string me resolution number chhupa hai
-  const q = (format.quality || format.format_note || format.resolution || '').toString().toLowerCase();
-  
-  if (q.includes('2160')) return '4K';
-  if (q.includes('1440')) return '1440p';
-  if (q.includes('1080')) return '1080p';
-  if (q.includes('720')) return '720p';
-  if (q.includes('480')) return '480p';
-  if (q.includes('360')) return '360p';
-  if (q.includes('240')) return '240p';
-  if (q.includes('144')) return '144p';
-
-  // 3. Instagram ke raw labels fallback (Jo Normal ban rahe the)
-  if (q.includes('unknown')) return '1080p';
-  if (q.includes('dash')) return 'HD Video';
-
-  // 4. Agar sirf audio hai
-  if (format.hasAudio && !format.hasVideo) return 'Audio Only';
-
-  // 5. Final premium fallback ('Normal' ki jagah 'HD' dikhega)
-  return 'HD';
-}
-
 function WatchContent() {
   const searchParams = useSearchParams();
   const videoUrl = searchParams.get('url');
@@ -79,6 +49,64 @@ function WatchContent() {
       setExtracting(false);
     }
   }
+
+  // SMART FILTER: Duplicates hatayega aur dynamically 1080p, 720p, 480p dega
+  const getProcessedFormats = () => {
+    if (!mediaData || !mediaData.formats) return [];
+    
+    let unknownCount = 0;
+    let dashCount = 0;
+    const uniqueFormats: any[] = [];
+    const seen = new Set();
+
+    mediaData.formats.forEach((format: any) => {
+      let q = (format.quality || format.format_note || format.resolution || '').toString().toLowerCase();
+      let label = 'Normal';
+
+      // 1. Agar actual height available hai (YouTube ke liye best)
+      if (format.height) {
+        label = `${format.height}p`;
+      } 
+      // 2. Agar string me digits hain
+      else if (q.match(/(\d+)p?/)) {
+        const match = q.match(/(\d+)/);
+        if (match) label = `${match[1]}p`;
+      } 
+      // 3. Instagram ke "unknown" formats ko progressively labels dena
+      else if (q.includes('unknown') || q === '') {
+        if (unknownCount === 0) label = '1080p';
+        else if (unknownCount === 1) label = '720p';
+        else if (unknownCount === 2) label = '480p';
+        else label = '360p';
+        unknownCount++;
+      } 
+      // 4. Instagram ke "dash" ko progressively labels dena
+      else if (q.includes('dash')) {
+        if (dashCount === 0) label = '1080p';
+        else if (dashCount === 1) label = '720p';
+        else label = '480p';
+        dashCount++;
+      } 
+      else if (format.hasAudio && !format.hasVideo) {
+        label = 'Audio Only';
+      } else {
+        label = 'HD';
+      }
+
+      // Duplicate check (Taaki ek hi quality ke do button na aaye)
+      const type = format.hasAudio ? 'va' : 'v';
+      const key = label + type;
+
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueFormats.push({ ...format, cleanLabel: label });
+      }
+    });
+
+    return uniqueFormats.slice(0, 6); // Sirf top 6 clean options dikhayenge
+  };
+
+  const processedFormats = getProcessedFormats();
 
   if (!videoUrl) {
     return (
@@ -133,18 +161,18 @@ function WatchContent() {
             ) : null}
           </div>
 
-          {mediaData && mediaData.formats && (
+          {processedFormats.length > 0 && (
             <div className="card mb-4">
               <h3 className="text-lg font-bold mb-3">⬇️ Download Options</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {mediaData.formats.slice(0, 10).map((format: any, index: number) => (
+                {processedFormats.map((format: any, index: number) => (
                   <div 
                     key={index} 
                     className="flex justify-between items-center bg-neutral-900 p-3 rounded border border-neutral-800"
                   >
                     <div className="flex flex-col">
                       <span className="font-semibold text-sm">
-                        {getCleanQuality(format)}
+                        {format.cleanLabel}
                       </span>
                       <span className="text-xs text-neutral-500">
                         {format.hasAudio ? 'Video + Audio' : 'Video only'}
