@@ -11,31 +11,49 @@ export default function PoolSettings() {
     generatorActive: false,
     proxyConfig: '',
   });
+  const [adminSecret, setAdminSecret] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch('/api/pool/settings').then((r) => r.json()).then((d) => d && setForm({ ...form, ...d }));
+    fetch('/api/pool/settings')
+      .then((r) => r.json())
+      .then((d) => d && setForm((prev) => ({ ...prev, ...d })));
   }, []);
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!adminSecret) {
+      alert('Admin secret chahiye — Vercel env mein CRON_SECRET jo hai');
+      return;
+    }
     setSaving(true);
     const res = await fetch('/api/pool/settings', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + (process.env.NEXT_PUBLIC_CRON_SECRET || ''),
+        'Authorization': 'Bearer ' + adminSecret,
       },
       body: JSON.stringify(form),
     });
     setSaving(false);
-    alert(res.ok ? 'Saved' : 'Failed — CRON_SECRET check karo Vercel env mein');
+    alert(res.ok ? 'Saved' : 'Failed — CRON_SECRET check karo');
   };
 
   return (
     <div>
       <h2 className="text-2xl font-bold mb-6 text-indigo-400">Pool Settings</h2>
       <form onSubmit={save} className="card max-w-2xl space-y-4">
+        <div>
+          <label className="text-sm text-neutral-400 block mb-1">Admin Secret</label>
+          <input
+            type="password"
+            required
+            className="input"
+            value={adminSecret}
+            onChange={(e) => setAdminSecret(e.target.value)}
+            placeholder="CRON_SECRET value"
+          />
+        </div>
         <div>
           <label className="text-sm text-neutral-400 block mb-1">Health Check Interval (hours)</label>
           <input type="number" value={form.healthCheckInterval} onChange={(e) => setForm({ ...form, healthCheckInterval: +e.target.value })} className="input" />
@@ -60,7 +78,7 @@ export default function PoolSettings() {
         </div>
         <div>
           <label className="text-sm text-neutral-400 block mb-1">Proxy Config (JSON)</label>
-          <input type="text" value={form.proxyConfig || ''} onChange={(e) => setForm({ ...form, proxyConfig: e.target.value })} className="input font-mono text-xs" placeholder='{"gateway":"http://user:pass@ip:port"}' />
+          <input type="text" value={form.proxyConfig || ''} onChange={(e) => setForm({ ...form, proxyConfig: e.target.value })} className="input font-mono text-xs" placeholder='{"gateway":"..."}' />
         </div>
         <div className="flex items-center gap-3">
           <input type="checkbox" checked={form.generatorActive} onChange={(e) => setForm({ ...form, generatorActive: e.target.checked })} className="w-5 h-5" />

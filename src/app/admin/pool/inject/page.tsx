@@ -7,13 +7,14 @@ export default function ManualInject() {
     username: '',
     rawCookies: '',
     proxy: '',
+    adminSecret: '',
   });
   const [saving, setSaving] = useState(false);
 
   const inject = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!data.username || !data.rawCookies) {
-      alert('Username aur cookies dono chahiye');
+    if (!data.username || !data.rawCookies || !data.adminSecret) {
+      alert('Username, cookies aur admin secret — sab chahiye');
       return;
     }
     setSaving(true);
@@ -21,7 +22,7 @@ export default function ManualInject() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + (process.env.NEXT_PUBLIC_POOL_INJECTION_SECRET || ''),
+        'Authorization': 'Bearer ' + data.adminSecret,
       },
       body: JSON.stringify({
         platform: data.platform,
@@ -45,10 +46,20 @@ export default function ManualInject() {
     <div>
       <h2 className="text-2xl font-bold mb-6 text-indigo-400">Manual Cookie Inject</h2>
       <p className="text-sm text-neutral-400 mb-4">
-        Note: Ye plain cookies DB mein daal raha hai — encryption next step mein aayega.
-        Filhaal test ke liye use karo.
+        Note: Admin secret enter karo — jo Vercel env mein `POOL_INJECTION_SECRET` hai.
       </p>
       <form onSubmit={inject} className="card max-w-2xl space-y-4">
+        <div>
+          <label className="text-sm text-neutral-400 block mb-1">Admin Secret</label>
+          <input
+            type="password"
+            required
+            className="input"
+            value={data.adminSecret}
+            onChange={(e) => setData({ ...data, adminSecret: e.target.value })}
+            placeholder="super_secure_system_token_validation_layer"
+          />
+        </div>
         <div>
           <label className="text-sm text-neutral-400 block mb-1">Platform</label>
           <select value={data.platform} onChange={(e) => setData({ ...data, platform: e.target.value })} className="input">
@@ -68,7 +79,7 @@ export default function ManualInject() {
             className="input font-mono text-xs"
             value={data.rawCookies}
             onChange={(e) => setData({ ...data, rawCookies: e.target.value })}
-            placeholder="# Netscape HTTP Cookie File&#10;.instagram.com	TRUE	/	TRUE	1234567890	sessionid	..."
+            placeholder="# Netscape HTTP Cookie File..."
           />
         </div>
         <div>
