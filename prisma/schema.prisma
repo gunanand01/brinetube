@@ -117,3 +117,35 @@ model ProviderType {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
+model AccountPool {
+  id               String    @id @default(uuid())
+  platform         String
+  username         String    @unique
+  cookiesEncrypted String
+  proxyAssigned    String?
+  userAgent        String?
+  status           String    @default("active")
+  priority         Int       @default(0)
+  healthScore      Int       @default(100)
+  lastHealthCheck  DateTime?
+  lastUsedAt       DateTime?
+  successCount     Int       @default(0)
+  failCount        Int       @default(0)
+  expiresAt        DateTime
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([platform, status, healthScore, priority])
+}
+
+model CookiePoolSettings {
+  id                  String   @id @default("global_config")
+  healthCheckInterval Int      @default(6)
+  youtubeTestUrl      String   @default("https://youtube.com")
+  instagramTestUrl    String   @default("https://instagram.com")
+  failThreshold       Int      @default(5)
+  minCookiesRequired  Int      @default(3)
+  generatorActive     Boolean  @default(false)
+  proxyConfig         String?
+  updatedAt           DateTime @updatedAt
+}
